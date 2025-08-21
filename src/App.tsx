@@ -1,135 +1,143 @@
 // src/App.tsx
-import React, { useEffect, useMemo, useState } from 'react'
-import Controls from './components/Controls'
-import ActualBoard from './components/ActualBoard'
-import ForecastBoard from './components/ForecastBoard'
+import React, { useEffect, useMemo, useState } from 'react';
+import Controls from './components/Controls';
+import ActualBoard from './components/ActualBoard';
+import ForecastBoard from './components/ForecastBoard';
 import {
-  RawRow, MonthAgg,
-  loadTrainingData, loadForecastData,
-  listMachines, listYears, aggregateMonthly,
-} from './lib/data'
-import { loadMachineCalendar, type CalendarMap } from './lib/calendar'
-import { adjustWithCalendar } from './lib/data'
+  listMachines,
+  listYears,
+  loadTrainingRows,
+  loadForecastRows,
+  getMonthlyWithAdjustment,
+  type RawRow,
+} from './lib/data';
+import type { MonthAgg } from './lib/calendar';
 
-export default function App() {
-  const [trainRows, setTrainRows] = useState<RawRow[]>([])
-  const [predRows, setPredRows] = useState<RawRow[]>([])
-  const [calendar, setCalendar] = useState<CalendarMap | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState<string>('')
-
-  // 보정 on/off 및 강도
-  const [useAdjustActual, setUseAdjustActual] = useState(false)
-  const [useAdjustForecast, setUseAdjustForecast] = useState(true) // 예측은 기본 켬
-  const [boost, setBoost] = useState(1.2)
-  const [base, setBase] = useState(0.9)
+function App() {
+  const [train, setTrain] = useState<RawRow[]>([]);
+  const [forecast, setForecast] = useState<RawRow[]>([]);
+  const [machines, setMachines] = useState<string[]>([]);
+  const [yearsActual, setYearsActual] = useState<number[]>([]);
+  const [yearsForecast, setYearsForecast] = useState<number[]>([]);
+  const [actualMachine, setActualMachine] = useState('');
+  const [actualYear, setActualYear] = useState<number>(2024);
+  const [forecastMachine, setForecastMachine] = useState('');
+  const [forecastYear, setForecastYear] = useState<number>(2030);
+  const [useActualAdjust, setUseActualAdjust] = useState(false);
+  const [useForecastAdjust, setUseForecastAdjust] = useState(true);
+  const [boost, setBoost] = useState(1.2);
+  const [base, setBase] = useState(0.9);
+  const [preserveAnnualTotal, setPreserveAnnualTotal] = useState(true);
 
   useEffect(() => {
     (async () => {
-      try {
-        const [t, p] = await Promise.all([
-          loadTrainingData(),
-          loadForecastData(),
-        ])
-        setTrainRows(t); setPredRows(p)
+      const tr = await loadTrainingRows();
+      const fc = await loadForecastRows();
+      setTrain(tr);
+      setForecast(fc);
 
-        // 농사달력 로드
-        const cal = await loadMachineCalendar()
-        setCalendar(cal)
-      } catch (e: any) {
-        setErr(e?.message ?? '데이터 로딩 실패')
-      } finally {
-        setLoading(false)
+      const m = listMachines(tr);
+      setMachines(m);
+      setActualMachine(m[0] ?? '');
+      setForecastMachine(m[0] ?? '');
+
+      setYearsActual(listYears(tr));
+      setYearsForecast(listYears(fc));
+    })();
+  }, []);
+
+  const adjOpts = useMemo(
+    () => ({
+      useForActual: useActualAdjust,
+      useForForecast: useForecastAdjust,
+      boost,
+      base,
+      preserveAnnualTotal,
+    }),
+    [useActualAdjust, useForecastAdjust, boost, base, preserveAnnualTotal],
+  );
+
+  const [actualMonthly, setActualMonthly] = useState<MonthAgg[]>([]);
+  const [forecastMonthly, setForecastMonthly] = useState<MonthAgg[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      if (!actualMachine || train.length === 0) {
+        setActualMonthly([]);
+        return;
       }
-    })()
-  }, [])
-
-  const machinesActual = useMemo(() => listMachines(trainRows), [trainRows])
-  const yearsActual = useMemo(() => listYears(trainRows), [trainRows])
-  const machinesForecast = useMemo(() => listMachines(predRows), [predRows])
-  const yearsForecast = useMemo(() => listYears(predRows), [predRows])
-
-  const [selMachineA, setSelMachineA] = useState('')
-  const [selYearA, setSelYearA] = useState<number>(2025)
-  const [selMachineF, setSelMachineF] = useState('')
-  const [selYearF, setSelYearF] = useState<number>(2026)
+      const agg = await getMonthlyWithAdjustment(
+        train,
+        actualMachine,
+        actualYear,
+        false,
+        adjOpts,
+      );
+      setActualMonthly(agg);
+    })();
+  }, [train, actualMachine, actualYear, adjOpts]);
 
   useEffect(() => {
-    if (!selMachineA && machinesActual.length) setSelMachineA(machinesActual[0])
-    if (yearsActual.length) setSelYearA(yearsActual[yearsActual.length - 1])
-  }, [machinesActual, yearsActual, selMachineA])
+    (async () => {
+      if (!forecastMachine || forecast.length === 0) {
+        setForecastMonthly([]);
+        return;
+      }
+      const agg = await getMonthlyWithAdjustment(
+        forecast,
+        forecastMachine,
+        forecastYear,
+        true,
+        adjOpts,
+      );
+      setForecastMonthly(agg);
+    })();
+  }, [forecast, forecastMachine, forecastYear, adjOpts]);
 
-  useEffect(() => {
-    if (!selMachineF && machinesForecast.length) setSelMachineF(machinesForecast[0])
-    if (yearsForecast.length) setSelYearF(yearsForecast[0])
-  }, [machinesForecast, yearsForecast, selMachineF])
-
-  const actualMonthly: MonthAgg[] = useMemo(() => {
-    const m = selMachineA ? aggregateMonthly(trainRows, selYearA, selMachineA, false) : []
-    if (!useAdjustActual) return m
-    return adjustWithCalendar(m, selMachineA, calendar, { boost, base, normalize: true })
-  }, [trainRows, selYearA, selMachineA, useAdjustActual, calendar, boost, base])
-
-  const predMonthly: MonthAgg[] = useMemo(() => {
-    const m = selMachineF ? aggregateMonthly(predRows, selYearF, selMachineF, true) : []
-    if (!useAdjustForecast) return m
-    return adjustWithCalendar(m, selMachineF, calendar, { boost, base, normalize: true })
-  }, [predRows, selYearF, selMachineF, useAdjustForecast, calendar, boost, base])
-
-  if (loading) return <div style={{ padding: 24 }}>불러오는 중…</div>
-  if (err) return <div style={{ padding: 24, color: '#ef4444' }}>오류: {err}</div>
+  const loading = machines.length === 0;
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
-      <h1 style={{ marginTop: 0 }}>임대예측 대시보드 (2015–2040)</h1>
+    <div style={{ padding: 12 }}>
+      <h2>임대예측 대시보드 (2015~2040)</h2>
 
-      {/* 보정 옵션 */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <input type="checkbox" checked={useAdjustActual} onChange={e => setUseAdjustActual(e.target.checked)} />
-          <span>실제 데이터 달력 보정</span>
-        </label>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <input type="checkbox" checked={useAdjustForecast} onChange={e => setUseAdjustForecast(e.target.checked)} />
-          <span>예측 데이터 달력 보정</span>
-        </label>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          Boost
-          <input type="number" step="0.05" value={boost} onChange={e => setBoost(Number(e.target.value) || 1.2)} style={{ width: 70 }} />
-        </label>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          Base
-          <input type="number" step="0.05" value={base} onChange={e => setBase(Number(e.target.value) || 0.9)} style={{ width: 70 }} />
-        </label>
-      </div>
-
-      {/* 실제 */}
       <Controls
-        title="실제 데이터 선택 (2015–2025)"
-        machines={machinesActual}
-        years={yearsActual}
-        selMachine={selMachineA}
-        selYear={selYearA}
-        onMachine={setSelMachineA}
-        onYear={setSelYearA}
+        machines={machines}
+        yearsActual={yearsActual}
+        yearsForecast={yearsForecast}
+        actualMachine={actualMachine}
+        actualYear={actualYear}
+        forecastMachine={forecastMachine}
+        forecastYear={forecastYear}
+        useActualAdjust={useActualAdjust}
+        useForecastAdjust={useForecastAdjust}
+        boost={boost}
+        base={base}
+        preserveAnnualTotal={preserveAnnualTotal}
+        onChangeActualMachine={setActualMachine}
+        onChangeActualYear={setActualYear}
+        onChangeForecastMachine={setForecastMachine}
+        onChangeForecastYear={setForecastYear}
+        onChangeUseActualAdjust={setUseActualAdjust}
+        onChangeUseForecastAdjust={setUseForecastAdjust}
+        onChangeBoost={setBoost}
+        onChangeBase={setBase}
+        onChangePreserveAnnual={setPreserveAnnualTotal}
       />
-      <ActualBoard data={actualMonthly} />
 
-      {/* 예측 */}
-      <Controls
-        title="예측 데이터 선택 (2026–2040)"
-        machines={machinesForecast}
-        years={yearsForecast}
-        selMachine={selMachineF}
-        selYear={selYearF}
-        onMachine={setSelMachineF}
-        onYear={setSelYearF}
-      />
-      <ForecastBoard data={predMonthly} />
-
-      <p style={{ color: '#6b7280', marginTop: 16 }}>
-        ※ 달력 보정은 월별 분포를 농사달력과 정합되게 조정합니다(연간 합은 유사하게 유지).
-      </p>
+      {loading ? (
+        <div style={{ padding: 16 }}>데이터 불러오는 중…</div>
+      ) : (
+        <>
+          <div style={{ marginTop: 16 }}>
+            <ActualBoard data={actualMonthly} />
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <ForecastBoard data={forecastMonthly} />
+          </div>
+        </>
+      )}
     </div>
-  )
+  );
 }
+
+export default App;
