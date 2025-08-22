@@ -28,6 +28,54 @@ type Props = {
   onChangePreserveAnnual: (v: boolean) => void;
 };
 
+// 공통 컨트롤 크기
+const baseCtl = {
+  fontSize: 18,
+  lineHeight: 1.3,
+} as const;
+
+// 드롭다운
+const selectStyle: React.CSSProperties = {
+  ...baseCtl,
+  height: 44,
+  padding: '8px 12px',
+  minWidth: 180,
+  marginRight: 16,
+  borderRadius: 8,
+  border: '1px solid #d1d5db',
+  background: '#fff',
+};
+
+// Boost/Base 숫자 입력 – 크게
+const numberStyle: React.CSSProperties = {
+  ...baseCtl,
+  height: 56,
+  fontSize: 22,
+  width: 180,
+  padding: '8px 14px',
+  marginLeft: 8,
+  marginRight: 24,
+  borderRadius: 10,
+  border: '1px solid #cbd5e1',
+  background: '#fff',
+};
+
+// 체크박스
+const checkboxStyle: React.CSSProperties = {
+  width: 22,
+  height: 22,
+  verticalAlign: 'middle',
+  marginRight: 8,
+};
+
+const labelStyle: React.CSSProperties = {
+  ...baseCtl,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  marginRight: 20,
+};
+
 const Controls: React.FC<Props> = ({
   machines,
   yearsActual,
@@ -54,114 +102,132 @@ const Controls: React.FC<Props> = ({
   return (
     <div
       style={{
-        border: '1px solid #e5e7eb',
+        border: '1px solid #e5e7eb',   // 보드와 동일
         borderRadius: 12,
         padding: 16,
         marginBottom: 20,
         background: '#fff',
-        fontSize: '18px',
-        lineHeight: 1.6,
       }}
     >
-      <h2 style={{ marginBottom: 16 }}>임대예측 대시보드 (2015~2040)</h2>
+      <h2 style={{ margin: '0 0 12px 0', fontSize: 20 }}>임대예측 대시보드 (2015~2040)</h2>
 
-      <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
-        <label>
+      {/* 상단 스위치 + Boost/Base */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 16,
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <label style={labelStyle}>
           <input
             type="checkbox"
             checked={useActualAdjust}
             onChange={(e) => onChangeUseActualAdjust(e.target.checked)}
-            style={{ width: 20, height: 20, marginRight: 6 }}
+            style={checkboxStyle}
           />
           실제 데이터 달력 보정
         </label>
 
-        <label>
+        <label style={labelStyle}>
           <input
             type="checkbox"
             checked={useForecastAdjust}
             onChange={(e) => onChangeUseForecastAdjust(e.target.checked)}
-            style={{ width: 20, height: 20, marginRight: 6 }}
+            style={checkboxStyle}
           />
           예측 데이터 달력 보정
         </label>
 
-        Boost:
+        <span style={{ ...baseCtl, marginLeft: 8 }}>Boost:</span>
         <input
           type="number"
           value={boost}
           step={0.05}
           onChange={(e) => onChangeBoost(Number(e.target.value))}
-          style={{ width: 120, height: 44, fontSize: 18, marginLeft: 6, marginRight: 20 }}
+          style={numberStyle}
         />
 
-        Base:
+        <span style={{ ...baseCtl }}>Base:</span>
         <input
           type="number"
           value={base}
           step={0.05}
           onChange={(e) => onChangeBase(Number(e.target.value))}
-          style={{ width: 120, height: 44, fontSize: 18, marginLeft: 6, marginRight: 20 }}
+          style={numberStyle}
         />
 
-        <label>
+        <label style={labelStyle}>
           <input
             type="checkbox"
             checked={preserveAnnualTotal}
             onChange={(e) => onChangePreserveAnnual(e.target.checked)}
-            style={{ width: 20, height: 20, marginRight: 6 }}
+            style={checkboxStyle}
           />
           연간 총량 유지
         </label>
       </div>
 
+      {/* 실제/예측 선택 */}
       <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
-        {/* 실제 데이터 선택 */}
+        {/* 실제 */}
         <div>
-          <h3 style={{ marginBottom: 8 }}>실제 데이터 선택 (2015~2025)</h3>
-          기종:
+          <h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>실제 데이터 선택 (2015~2025)</h3>
+          <span style={baseCtl}>기종: </span>
           <select
             value={actualMachine}
             onChange={(e) => onChangeActualMachine(e.target.value)}
-            style={{ fontSize: 16, padding: '6px 12px', width: 180, height: 40, marginLeft: 6, marginRight: 12 }}
+            style={selectStyle}
           >
             {machines.map((m) => (
-              <option key={m} value={m}>{m}</option>
+              <option key={m} value={m}>
+                {m}
+              </option>
             ))}
           </select>
-          년도:
+
+          <span style={baseCtl}>년도: </span>
           <select
             value={actualYear}
             onChange={(e) => onChangeActualYear(Number(e.target.value))}
-            style={{ fontSize: 16, padding: '6px 12px', width: 120, height: 40, marginLeft: 6 }}
+            style={{ ...selectStyle, minWidth: 140 }}
           >
             {yearsActual.map((y) => (
-              <option key={y} value={y}>{y}</option>
+              <option key={y} value={y}>
+                {y}
+              </option>
             ))}
           </select>
         </div>
 
-        {/* 예측 데이터 선택 */}
+        {/* 예측 */}
         <div>
-          <h3 style={{ marginBottom: 8 }}>예측 데이터 선택 (2026~2040)</h3>
-          기종:
+          <h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>예측 데이터 선택 (2026~2040)</h3>
+          <span style={baseCtl}>기종: </span>
           <select
             value={forecastMachine}
             onChange={(e) => onChangeForecastMachine(e.target.value)}
-            style={{ fontSize: 16, padding: '6px 12px', width: 180, height: 40, marginLeft: 6, marginRight: 12 }}
+            style={selectStyle}
           >
             {machines.map((m) => (
-              <option key={m} value={m}>{m}</option>
+              <option key={m} value={m}>
+                {m}
+              </option>
             ))}
           </select>
-          년도:
+
+          <span style={baseCtl}>년도: </span>
           <select
             value={forecastYear}
             onChange={(e) => onChangeForecastYear(Number(e.target.value))}
-            style={{ fontSize: 16, padding: '6px 12px', width: 120, height: 40, marginLeft: 6 }}
+            style={{ ...selectStyle, minWidth: 140 }}
           >
             {yearsForecast.map((y) => (
-              <option key={y} value={y}>{y}</option>
+              <option key={y} value={y}>
+                {y}
+              </option>
             ))}
           </select>
         </div>
