@@ -1,8 +1,8 @@
-name: Deploy Vite app to GitHub Pages
+name: Deploy Vite to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -28,7 +28,8 @@ jobs:
           cache: npm
 
       - name: Install deps
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
       - name: Build
         run: npm run build
