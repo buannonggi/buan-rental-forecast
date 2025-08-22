@@ -24,6 +24,9 @@ export default function App() {
   const [boost, setBoost] = useState(1.2)
   const [base, setBase] = useState(0.9)
 
+  // 총량 보존 on/off (normalize)
+  const [preserveAnnualTotal, setPreserveAnnualTotal] = useState(true)
+
   useEffect(() => {
     (async () => {
       try {
@@ -67,14 +70,22 @@ export default function App() {
   const actualMonthly: MonthAgg[] = useMemo(() => {
     const m = selMachineA ? aggregateMonthly(trainRows, selYearA, selMachineA, false) : []
     if (!useAdjustActual) return m
-    return adjustWithCalendar(m, selMachineA, calendar, { boost, base, normalize: true })
-  }, [trainRows, selYearA, selMachineA, useAdjustActual, calendar, boost, base])
+    return adjustWithCalendar(m, selMachineA, calendar, {
+      boost,
+      base,
+      normalize: preserveAnnualTotal,
+    })
+  }, [trainRows, selYearA, selMachineA, useAdjustActual, calendar, boost, base, preserveAnnualTotal])
 
   const predMonthly: MonthAgg[] = useMemo(() => {
     const m = selMachineF ? aggregateMonthly(predRows, selYearF, selMachineF, true) : []
     if (!useAdjustForecast) return m
-    return adjustWithCalendar(m, selMachineF, calendar, { boost, base, normalize: true })
-  }, [predRows, selYearF, selMachineF, useAdjustForecast, calendar, boost, base])
+    return adjustWithCalendar(m, selMachineF, calendar, {
+      boost,
+      base,
+      normalize: preserveAnnualTotal,
+    })
+  }, [predRows, selYearF, selMachineF, useAdjustForecast, calendar, boost, base, preserveAnnualTotal])
 
   if (loading) return <div style={{ padding: 24 }}>불러오는 중…</div>
   if (err) return <div style={{ padding: 24, color: '#ef4444' }}>오류: {err}</div>
@@ -84,7 +95,7 @@ export default function App() {
       <h1 style={{ marginTop: 0 }}>임대예측 대시보드 (2015–2040)</h1>
 
       {/* 보정 옵션 */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 16 }}>
         <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input type="checkbox" checked={useAdjustActual} onChange={e => setUseAdjustActual(e.target.checked)} />
           <span>실제 데이터 달력 보정</span>
@@ -100,6 +111,14 @@ export default function App() {
         <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           Base
           <input type="number" step="0.05" value={base} onChange={e => setBase(Number(e.target.value) || 0.9)} style={{ width: 70 }} />
+        </label>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            checked={preserveAnnualTotal}
+            onChange={(e) => setPreserveAnnualTotal(e.target.checked)}
+          />
+          <span>총량 보존 (연간 합 유지)</span>
         </label>
       </div>
 
@@ -128,7 +147,7 @@ export default function App() {
       <ForecastBoard data={predMonthly} />
 
       <p style={{ color: '#6b7280', marginTop: 16 }}>
-        ※ 달력 보정은 월별 분포를 농사달력과 정합되게 조정합니다(연간 합은 유사하게 유지).
+        ※ 달력 보정은 월별 분포를 농사달력과 정합되게 조정합니다. “총량 보존”을 끄면 연간 합이 달라질 수 있습니다.
       </p>
     </div>
   )

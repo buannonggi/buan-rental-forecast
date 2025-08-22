@@ -1,3 +1,4 @@
+// src/components/ForecastBoard.tsx
 import React from 'react'
 import {
   ResponsiveContainer, ComposedChart, XAxis, YAxis,
@@ -14,13 +15,16 @@ const ForecastBoard: React.FC<{ data: MonthAgg[] }> = ({ data }) => {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="month" tickFormatter={(m) => `${m}월`} />
           <YAxis yAxisId="L" label={{ value: '예측 임대건수', angle: -90, position: 'insideLeft' }} />
-          <YAxis yAxisId="R" orientation="right"
-                 label={{ value: '강수(mm)/기온(℃)', angle: -90, position: 'insideRight' }} />
+          <YAxis
+            yAxisId="R"
+            orientation="right"
+            label={{ value: '강수(mm)/기온(℃)', angle: -90, position: 'insideRight' }}
+          />
           <Tooltip />
           <Legend />
-          <Bar  yAxisId="L" dataKey="rental"   name="예측 임대건수" />
-          <Line yAxisId="R" type="monotone" dataKey="rainfall" name="강수량(mm)" />
-          <Line yAxisId="R" type="monotone" dataKey="avgTemp"  name="평균기온(℃)" />
+          <Bar  yAxisId="L" dataKey="rental"   name="예측 임대건수" fill="#64748b" />
+          <Line yAxisId="R" type="monotone" dataKey="rainfall" name="강수량(mm)" stroke="#3b82f6" strokeWidth={2} dot={false} />
+          <Line yAxisId="R" type="monotone" dataKey="avgTemp"  name="평균기온(℃)" stroke="#f97316" strokeWidth={2} dot={false} strokeDasharray="6 6" />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
