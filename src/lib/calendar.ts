@@ -1,100 +1,64 @@
 // src/lib/calendar.ts
-export type MachineCalendar = Record<string, number[]>; // 예: { "트랙터":[3,4,5,9,10], ... }
+export type CalendarMap = Record<string, number[]>;
 
-export interface AdjustOptions {
-  /** 실제(2015~2025) 데이터에 달력 보정을 적용할지 */
-  useForActual?: boolean;
-  /** 예측(2026~2040) 데이터에 달력 보정을 적용할지 */
-  useForForecast?: boolean;
-  /** 달력에 포함된 달에 곱할 계수 (기본 1.2) */
-  boost?: number;
-  /** 달력에 포함되지 않은 달에 곱할 계수 (기본 0.9) */
-  base?: number;
-  /** 보정 후에도 연간 총합을 원래와 동일하게 맞출지 (기본 true) */
-  preserveAnnualTotal?: boolean;
-}
+const NORMALIZE_TARGET = 1;        // 연평균 가중치(=1로 정규화)
+const DEFAULT_BOOST = 1.2;         // 달력에 포함된 월에 곱할 값
+const DEFAULT_BASE  = 0.9;         // 달력에 없는 월에 곱할 값
 
-export type MonthAgg = {
-  month: number;     // 1~12
-  rental: number;    // 임대 건수(혹은 확률/예측치)
-  rainfall: number;  // 강수량
-  avgTemp: number;   // 평균기온
-};
-
-/** JSON 달력 로딩 */
-export async function loadMachineCalendar(): Promise<MachineCalendar> {
-  const res = await fetch(`${import.meta.env.BASE_URL}data/machine_calendar.json`);
-  if (!res.ok) throw new Error(`machine_calendar.json을 불러오지 못했습니다: ${res.status}`);
-  return res.json();
-}
-
-/** 내부 유틸: 1~12 → 0~11 index 로 변환 */
-function toIdx(m: number) { return Math.max(0, Math.min(11, m - 1)); }
-
-/** 내부 유틸: MonthAgg[] → 12칸 배열(없는 달은 0) */
-function toSeries12(rows: MonthAgg[]): {
-  rental: number[];
-  rainfall: number[];
-  avgTemp: number[];
-} {
-  const rental = Array(12).fill(0);
-  const rainfall = Array(12).fill(0);
-  const avgTemp = Array(12).fill(0);
-  for (const r of rows) {
-    const i = toIdx(r.month);
-    rental[i] = r.rental ?? 0;
-    rainfall[i] = r.rainfall ?? 0;
-    avgTemp[i] = r.avgTemp ?? 0;
-  }
-  return { rental, rainfall, avgTemp };
-}
-
-/** 내부 유틸: 12칸 배열 → MonthAgg[] (month 1~12) */
-function fromSeries12(
-  src: MonthAgg[],
-  rental: number[],
-): MonthAgg[] {
-  const byMonth = new Map<number, MonthAgg>();
-  for (const r of src) byMonth.set(r.month, { ...r });
-
-  const out: MonthAgg[] = [];
-  for (let m = 1; m <= 12; m++) {
-    const base = byMonth.get(m) ?? { month: m, rental: 0, rainfall: 0, avgTemp: 0 };
-    out.push({ ...base, rental: rental[m - 1] ?? 0 });
-  }
-  return out;
+// JSON 로드
+export async function loadMachineCalendar(): Promise<CalendarMap> {
+  const res = await fetch('data/machine_calendar.json');
+  if (!res.ok) throw new Error('machine_calendar.json 로드 실패');
+  return (await res.json()) as CalendarMap;
 }
 
 /**
- * 핵심: 달력에 따라 월별 임대량(rental)만 가중치 적용
- * - calendar[machine]에 포함된 달은 boost, 그 외 달은 base 곱
- * - preserveAnnualTotal=true 이면, 보정 전/후 총합을 같게 스케일링
+ * 기종명을 달력 키와 대조해 가장 잘 맞는 키를 찾음
+ * - 완전 일치 우선, 없으면 "포함" 매칭
  */
-export function applyCalendarAdjustment(
-  src: MonthAgg[],
-  machine: string,
-  calendar: MachineCalendar,
-  opts: AdjustOptions,
-): MonthAgg[] {
-  const boost = opts.boost ?? 1.2;
-  const base  = opts.base ?? 0.9;
-  const months = new Set((calendar[machine] ?? []).map(toIdx)); // 0~11
+export function resolveCalendarKey(machineName: string, cal: CalendarMap): string | null {
+  const keys = Object.keys(cal);
+  // 완전 일치
+  const exact = keys.find(k => k === machineName);
+  if (exact) return exact;
 
-  const series = toSeries12(src);
-  const beforeSum = series.rental.reduce((a, b) => a + b, 0);
+  // 포함 일치 (괄호/공백/하이픈 등 잡스러운 표기를 커버)
+  const normalized = machineName.replace(/\s|\(|\)|\-|_/g, '');
+  const hit = keys.find(k => normalized.includes(k.replace(/\s|\(|\)|\-|_/g, '')));
+  return hit ?? null;
+}
 
-  const adjusted = series.rental.map((v, i) => {
-    const k = months.has(i) ? boost : base;
-    return v * k;
-  });
+/**
+ * 월별 값 배열을 달력 가중치로 보정
+ * - months: 1~12
+ * - values: 월별 임대량(숫자)
+ * - calMonths: 달력에 등록된 '집중 사용 월' (예: [6,7,8])
+ * - normalize: 연합이 유지되도록 평균 1.0으로 정규화
+ */
+export function applyCalendarWeights(
+  months: number[],
+  values: number[],
+  calMonths: number[] | null,
+  opts?: { boost?: number; base?: number; normalize?: boolean }
+): number[] {
+  const boost = opts?.boost ?? DEFAULT_BOOST;
+  const base  = opts?.base  ?? DEFAULT_BASE;
+  const normalize = opts?.normalize ?? true;
 
-  if ((opts.preserveAnnualTotal ?? true) && beforeSum > 0) {
-    const afterSum = adjusted.reduce((a, b) => a + b, 0);
-    if (afterSum > 0) {
-      const scale = beforeSum / afterSum;
-      for (let i = 0; i < adjusted.length; i++) adjusted[i] *= scale;
-    }
+  // 달력 매칭이 없으면 원본 반환
+  if (!calMonths || calMonths.length === 0) return values;
+
+  // 원시 가중치
+  const weights = months.map(m => (calMonths.includes(m) ? boost : base));
+
+  // 정규화 (연평균이 1이 되도록)
+  let normWeights = weights;
+  if (normalize) {
+    const avg = weights.reduce((a, b) => a + b, 0) / weights.length;
+    const factor = avg === 0 ? 1 : NORMALIZE_TARGET / avg;
+    normWeights = weights.map(w => w * factor);
   }
 
-  return fromSeries12(src, adjusted);
+  // 곱해서 반환
+  return values.map((v, i) => v * normWeights[i]);
 }
