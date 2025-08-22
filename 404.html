@@ -1,19 +1,13 @@
-<<<<<<< HEAD
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="refresh" content="0; url=./" />
+    <script>
+      (function() {
+        var p = location.pathname.replace(/\/+$/, '');
+        location.replace(p.substring(0, p.lastIndexOf('/')) + '/index.html' + location.search + location.hash);
+      })();
+    </script>
   </head>
   <body></body>
 </html>
-=======
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="refresh" content="0; url=./" />
-  </head>
-  <body></body>
-</html>
->>>>>>> a07fa1ef371d0a919e71f387d1baf1cbdfabffd1

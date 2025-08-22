@@ -6,89 +6,47 @@ type Props = {
   yearsActual: number[];
   yearsForecast: number[];
 
+  // 선택값 (App에서 내려주는 현재 상태)
   actualMachine: string;
   actualYear: number;
   forecastMachine: string;
   forecastYear: number;
 
+  // 보정 옵션 (App에서 내려주는 현재 상태)
   useActualAdjust: boolean;
   useForecastAdjust: boolean;
   boost: number;
   base: number;
   preserveAnnualTotal: boolean;
 
+  // 변경 핸들러 (App에서 내려주는 set 함수들)
   onChangeActualMachine: (m: string) => void;
   onChangeActualYear: (y: number) => void;
   onChangeForecastMachine: (m: string) => void;
   onChangeForecastYear: (y: number) => void;
   onChangeUseActualAdjust: (v: boolean) => void;
   onChangeUseForecastAdjust: (v: boolean) => void;
-  onChangeBoost: (v: number) => void;
-  onChangeBase: (v: number) => void;
+  onChangeBoost: (n: number) => void;
+  onChangeBase: (n: number) => void;
   onChangePreserveAnnual: (v: boolean) => void;
-};
-
-// 공통 컨트롤 크기
-const baseCtl = {
-  fontSize: 18,
-  lineHeight: 1.3,
-} as const;
-
-// 드롭다운
-const selectStyle: React.CSSProperties = {
-  ...baseCtl,
-  height: 44,
-  padding: '8px 12px',
-  minWidth: 180,
-  marginRight: 16,
-  borderRadius: 8,
-  border: '1px solid #d1d5db',
-  background: '#fff',
-};
-
-// Boost/Base 숫자 입력 – 크게
-const numberStyle: React.CSSProperties = {
-  ...baseCtl,
-  height: 56,
-  fontSize: 22,
-  width: 180,
-  padding: '8px 14px',
-  marginLeft: 8,
-  marginRight: 24,
-  borderRadius: 10,
-  border: '1px solid #cbd5e1',
-  background: '#fff',
-};
-
-// 체크박스
-const checkboxStyle: React.CSSProperties = {
-  width: 22,
-  height: 22,
-  verticalAlign: 'middle',
-  marginRight: 8,
-};
-
-const labelStyle: React.CSSProperties = {
-  ...baseCtl,
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 8,
-  marginRight: 20,
 };
 
 const Controls: React.FC<Props> = ({
   machines,
   yearsActual,
   yearsForecast,
+
   actualMachine,
   actualYear,
   forecastMachine,
   forecastYear,
+
   useActualAdjust,
   useForecastAdjust,
   boost,
   base,
   preserveAnnualTotal,
+
   onChangeActualMachine,
   onChangeActualYear,
   onChangeForecastMachine,
@@ -102,84 +60,94 @@ const Controls: React.FC<Props> = ({
   return (
     <div
       style={{
-        border: '1px solid #e5e7eb',   // 보드와 동일
+        border: '1px solid #ddd',
         borderRadius: 12,
-        padding: 16,
+        padding: 24,
         marginBottom: 20,
-        background: '#fff',
+        fontSize: '20px',
+        lineHeight: 2,
       }}
     >
-      <h2 style={{ margin: '0 0 12px 0', fontSize: 20 }}>임대예측 대시보드 (2015~2040)</h2>
+      <h2 style={{ marginBottom: 20 }}>임대예측 대시보드 (2015~2040)</h2>
 
-      {/* 상단 스위치 + Boost/Base */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 16,
-          alignItems: 'center',
-          marginBottom: 16,
-        }}
-      >
-        <label style={labelStyle}>
+      {/* 보정 옵션 */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ marginRight: 20 }}>
           <input
             type="checkbox"
             checked={useActualAdjust}
             onChange={(e) => onChangeUseActualAdjust(e.target.checked)}
-            style={checkboxStyle}
-          />
+            style={{ width: 20, height: 20 }}
+          />{' '}
           실제 데이터 달력 보정
         </label>
 
-        <label style={labelStyle}>
+        <label style={{ marginRight: 20 }}>
           <input
             type="checkbox"
             checked={useForecastAdjust}
             onChange={(e) => onChangeUseForecastAdjust(e.target.checked)}
-            style={checkboxStyle}
-          />
+            style={{ width: 20, height: 20 }}
+          />{' '}
           예측 데이터 달력 보정
         </label>
 
-        <span style={{ ...baseCtl, marginLeft: 8 }}>Boost:</span>
+        Boost:{' '}
         <input
           type="number"
           value={boost}
           step={0.05}
           onChange={(e) => onChangeBoost(Number(e.target.value))}
-          style={numberStyle}
+          style={{
+            width: 100,
+            height: 40,
+            fontSize: '18px',
+            marginLeft: 8,
+            marginRight: 20,
+          }}
         />
-
-        <span style={{ ...baseCtl }}>Base:</span>
+        Base:{' '}
         <input
           type="number"
           value={base}
           step={0.05}
           onChange={(e) => onChangeBase(Number(e.target.value))}
-          style={numberStyle}
+          style={{
+            width: 100,
+            height: 40,
+            fontSize: '18px',
+            marginLeft: 8,
+            marginRight: 20,
+          }}
         />
 
-        <label style={labelStyle}>
+        <label>
           <input
             type="checkbox"
             checked={preserveAnnualTotal}
             onChange={(e) => onChangePreserveAnnual(e.target.checked)}
-            style={checkboxStyle}
-          />
+            style={{ width: 20, height: 20 }}
+          />{' '}
           연간 총량 유지
         </label>
       </div>
 
-      {/* 실제/예측 선택 */}
-      <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
-        {/* 실제 */}
+      {/* 선택 영역 */}
+      <div style={{ display: 'flex', gap: 60, flexWrap: 'wrap' }}>
+        {/* 실제 데이터 선택 */}
         <div>
-          <h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>실제 데이터 선택 (2015~2025)</h3>
-          <span style={baseCtl}>기종: </span>
+          <h3 style={{ marginBottom: 12 }}>실제 데이터 선택 (2015~2025)</h3>
+          기종:{' '}
           <select
             value={actualMachine}
             onChange={(e) => onChangeActualMachine(e.target.value)}
-            style={selectStyle}
+            style={{
+              fontSize: '18px',
+              padding: '6px 12px',
+              width: 180,
+              height: 45,
+              marginRight: 20,
+            }}
           >
             {machines.map((m) => (
               <option key={m} value={m}>
@@ -187,12 +155,16 @@ const Controls: React.FC<Props> = ({
               </option>
             ))}
           </select>
-
-          <span style={baseCtl}>년도: </span>
+          년도:{' '}
           <select
             value={actualYear}
             onChange={(e) => onChangeActualYear(Number(e.target.value))}
-            style={{ ...selectStyle, minWidth: 140 }}
+            style={{
+              fontSize: '18px',
+              padding: '6px 12px',
+              width: 140,
+              height: 45,
+            }}
           >
             {yearsActual.map((y) => (
               <option key={y} value={y}>
@@ -202,14 +174,20 @@ const Controls: React.FC<Props> = ({
           </select>
         </div>
 
-        {/* 예측 */}
+        {/* 예측 데이터 선택 */}
         <div>
-          <h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>예측 데이터 선택 (2026~2040)</h3>
-          <span style={baseCtl}>기종: </span>
+          <h3 style={{ marginBottom: 12 }}>예측 데이터 선택 (2026~2040)</h3>
+          기종:{' '}
           <select
             value={forecastMachine}
             onChange={(e) => onChangeForecastMachine(e.target.value)}
-            style={selectStyle}
+            style={{
+              fontSize: '18px',
+              padding: '6px 12px',
+              width: 180,
+              height: 45,
+              marginRight: 20,
+            }}
           >
             {machines.map((m) => (
               <option key={m} value={m}>
@@ -217,12 +195,16 @@ const Controls: React.FC<Props> = ({
               </option>
             ))}
           </select>
-
-          <span style={baseCtl}>년도: </span>
+          년도:{' '}
           <select
             value={forecastYear}
             onChange={(e) => onChangeForecastYear(Number(e.target.value))}
-            style={{ ...selectStyle, minWidth: 140 }}
+            style={{
+              fontSize: '18px',
+              padding: '6px 12px',
+              width: 140,
+              height: 45,
+            }}
           >
             {yearsForecast.map((y) => (
               <option key={y} value={y}>
